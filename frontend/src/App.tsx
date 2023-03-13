@@ -90,7 +90,26 @@ function App() {
     );
   }
 
-  return <div className="App">{chat}</div>;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const context = canvas.getContext('2d');
+      if (context) {
+        context.moveTo(0, 10);
+        context.lineTo(150, 10);
+        context.stroke();
+      }
+    }
+  }, []);
+
+  return (
+    <div className="App">
+      <canvas ref={canvasRef} id="myCanvas" width="200" height="100" style={{ border: '1px solid #000000' }}></canvas>
+      {chat}
+    </div>
+  );
 }
 
 export default App;
