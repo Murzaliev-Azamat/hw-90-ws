@@ -1,3 +1,14 @@
+import { WebSocket } from "ws";
+
+export interface ActiveConnections {
+  [id: string]: WebSocket;
+}
+
+export interface IncomingMessage {
+  type: string;
+  payload: string;
+}
+
 export interface Artist {
   id: string;
   name: string;
@@ -5,7 +16,7 @@ export interface Artist {
   info: string;
 }
 
-export type ArtistWithoutId = Omit<Artist, 'id'>;
+export type ArtistWithoutId = Omit<Artist, "id">;
 
 export interface AlbumMutation {
   artist: string;

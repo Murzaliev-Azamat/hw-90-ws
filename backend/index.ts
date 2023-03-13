@@ -1,36 +1,61 @@
-import cors from 'cors';
-import express from 'express';
-import mongoose from 'mongoose';
-import artistsRouter from "./routers/artists";
-import albumsRouter from "./routers/albums";
-import tracksRouter from "./routers/tracks";
-import usersRouter from "./routers/users";
-import tracksHistoryRouter from "./routers/tracksHistory";
-import config from "./config";
+import cors from "cors";
+import express from "express";
+import expressWs from "express-ws";
+import { ActiveConnections, IncomingMessage } from "./types";
+import * as crypto from "crypto";
 
 const app = express();
+expressWs(app);
 const port = 8000;
 
 app.use(cors());
-app.use(express.static('public'));
+app.use(express.static("public"));
 app.use(express.json());
-app.use('/artists', artistsRouter);
-app.use('/albums', albumsRouter);
-app.use('/tracks', tracksRouter);
-app.use('/users', usersRouter);
-app.use('/track_history', tracksHistoryRouter);
+// app.use("/artists", artistsRouter);
 
-const run = async () => {
-  mongoose.set('strictQuery', false);
-  await mongoose.connect(config.db);
+const router = express.Router();
+app.use(router);
 
-  app.listen(port, () => {
-    console.log('We are live on ' + port);
+const activeConnections: ActiveConnections = {};
+
+router.ws("/chat", (ws, req) => {
+  const id = crypto.randomUUID();
+  console.log("client connected! id=" + id);
+  activeConnections[id] = ws;
+  let username = "Anonymous";
+
+  ws.on("message", (message) => {
+    const decodedMessage = JSON.parse(message.toString()) as IncomingMessage;
+
+    switch (decodedMessage.type) {
+      case "SET_USERNAME":
+        username = decodedMessage.payload;
+        break;
+      case "SEND_MESSAGE":
+        Object.keys(activeConnections).forEach((id) => {
+          const conn = activeConnections[id];
+          conn.send(
+            JSON.stringify({
+              type: "NEW_MESSAGE",
+              payload: {
+                username,
+                text: decodedMessage.payload,
+              },
+            })
+          );
+        });
+        break;
+      default:
+        console.log("Unknown type", decodedMessage.type);
+    }
   });
 
-  process.on('exit', () => {
-    mongoose.disconnect();
+  ws.on("close", () => {
+    console.log("client disconnected! id=" + id);
+    delete activeConnections[id];
   });
-};
+});
 
-run().catch(console.error);
+app.listen(port, () => {
+  console.log("We are live on " + port);
+});

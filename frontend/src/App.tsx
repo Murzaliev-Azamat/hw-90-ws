@@ -1,89 +1,96 @@
-import React from 'react';
-import { Button, Container, Grid } from '@mui/material';
-import { NavLink, Route, Routes } from 'react-router-dom';
-import Artists from './features/artists/Artists';
-import Albums from './features/albums/Albums';
-import Tracks from './features/tracks/Tracks';
-import AppToolBar from './components/UI/AppToolBar/AppToolBar';
-import Register from './features/users/Register';
-import Login from './features/users/Login';
-import TracksHistory from './features/tracksHistory/TracksHistory';
-import { useAppSelector } from './app/hooks';
-import { selectUser } from './features/users/usersSlise';
-import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
-import FormForArtists from './features/artists/FormForArtists';
-import FormForAlbums from './features/albums/FormForAlbums';
-import FormForTracks from './features/tracks/FormForTracks';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChatMessage, IncomingMessage } from '../types';
 
 function App() {
-  const user = useAppSelector(selectUser);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messageText, setMessageText] = useState('');
+  const [usernameText, setUsernameText] = useState('');
+  const [isLoggedIn, setLoggedIn] = useState(false);
 
-  return (
-    <div className="App">
-      <AppToolBar />
-      <Container maxWidth="md" sx={{ mt: 2 }}>
-        {user && (
-          <Grid container sx={{ mb: 2 }}>
-            <Grid item xs={2}>
-              <Button
-                component={NavLink}
-                variant="contained"
-                size="small"
-                disableElevation
-                style={{ color: 'white' }}
-                to={'/add-artist'}
-              >
-                Add artist
-              </Button>
-            </Grid>
-            <Grid item xs={2}>
-              <Button
-                component={NavLink}
-                variant="contained"
-                size="small"
-                disableElevation
-                style={{ color: 'white' }}
-                to={'/add-album'}
-              >
-                Add album
-              </Button>
-            </Grid>
-            <Grid item xs={2}>
-              <Button
-                component={NavLink}
-                variant="contained"
-                size="small"
-                disableElevation
-                style={{ color: 'white' }}
-                to={'/add-track'}
-              >
-                Add track
-              </Button>
-            </Grid>
-          </Grid>
-        )}
-        <Routes>
-          <Route path="/" element={<Artists />} />
-          <Route
-            path="/add-artist"
-            element={
-              <ProtectedRoute isAllowed={(user && user.role === 'admin') || (user && user.role === 'user')}>
-                <FormForArtists />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/albums/:id" element={<Albums />} />
-          <Route path="/add-album" element={<FormForAlbums />} />
-          <Route path="/tracks/:id" element={<Tracks />} />
-          <Route path="/add-track" element={<FormForTracks />} />
-          <Route path="/tracks_history" element={<TracksHistory />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="*" element={<span>Такой страницы не существует</span>} />
-        </Routes>
-      </Container>
+  const ws = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    ws.current = new WebSocket('ws://localhost:8000/chat');
+    ws.current.onclose = () => console.log('ws closed');
+    ws.current.onmessage = (event) => {
+      const decodedMessage = JSON.parse(event.data) as IncomingMessage;
+
+      if (decodedMessage.type === 'NEW_MESSAGE') {
+        setMessages((messages) => [...messages, decodedMessage.payload]);
+      }
+    };
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, []);
+
+  const changeUsername = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsernameText(e.target.value);
+  };
+
+  const changeMessage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageText(e.target.value);
+  };
+
+  const setUsername = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!ws.current) return;
+
+    ws.current.send(
+      JSON.stringify({
+        type: 'SET_USERNAME',
+        payload: usernameText,
+      }),
+    );
+
+    setLoggedIn(true);
+  };
+
+  const sendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!ws.current) return;
+
+    ws.current.send(
+      JSON.stringify({
+        type: 'SEND_MESSAGE',
+        payload: messageText,
+      }),
+    );
+  };
+
+  let chat = (
+    <div>
+      {messages.map((message, idx) => (
+        <div key={idx}>
+          <b>{message.username}: </b>
+          {message.text}
+        </div>
+      ))}
+
+      <form onSubmit={sendMessage}>
+        <input type="text" name="messageText" value={messageText} onChange={changeMessage} />
+
+        <input type="submit" value="Send" />
+      </form>
     </div>
   );
+
+  if (!isLoggedIn) {
+    chat = (
+      <form onSubmit={setUsername}>
+        <input type="text" name="username" value={usernameText} onChange={changeUsername} />
+        <button type="submit" value="Enter Chat">
+          Enter chat
+        </button>
+      </form>
+    );
+  }
+
+  return <div className="App">{chat}</div>;
 }
 
 export default App;
