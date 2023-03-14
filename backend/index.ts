@@ -11,36 +11,34 @@ const port = 8000;
 app.use(cors());
 app.use(express.static("public"));
 app.use(express.json());
-// app.use("/artists", artistsRouter);
 
 const router = express.Router();
 app.use(router);
 
 const activeConnections: ActiveConnections = {};
 
-router.ws("/chat", (ws, req) => {
+router.ws("/canvas", (ws, req) => {
   const id = crypto.randomUUID();
   console.log("client connected! id=" + id);
   activeConnections[id] = ws;
-  let username = "Anonymous";
+
+  const basePixels: any[] = [];
+
+  console.log(basePixels);
+  // ws.send(basePixels);
 
   ws.on("message", (message) => {
     const decodedMessage = JSON.parse(message.toString()) as IncomingMessage;
 
     switch (decodedMessage.type) {
-      case "SET_USERNAME":
-        username = decodedMessage.payload;
-        break;
-      case "SEND_MESSAGE":
+      case "SET_PIXELS":
+        basePixels.push(decodedMessage.payload);
         Object.keys(activeConnections).forEach((id) => {
           const conn = activeConnections[id];
           conn.send(
             JSON.stringify({
-              type: "NEW_MESSAGE",
-              payload: {
-                username,
-                text: decodedMessage.payload,
-              },
+              type: "NEW_PIXELS",
+              payload: decodedMessage.payload,
             })
           );
         });
