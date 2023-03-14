@@ -2,10 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CanvasPixels, IncomingMessage, PixelsApi } from '../types';
 
 function App() {
-  const [pixels, setPixels] = useState<CanvasPixels>({
-    x: '',
-    y: '',
-  });
+  const [pixels, setPixels] = useState<CanvasPixels[]>([
+    {
+      x: '',
+      y: '',
+    },
+  ]);
   const [state, setState] = useState<PixelsApi>({
     x: '',
     y: '',
@@ -18,10 +20,9 @@ function App() {
     ws.current.onclose = () => console.log('ws closed');
     ws.current.onmessage = (event) => {
       const decodedMessage = JSON.parse(event.data) as IncomingMessage;
-      console.log(decodedMessage);
 
       if (decodedMessage.type === 'NEW_PIXELS') {
-        setPixels((pixels) => decodedMessage.payload);
+        setPixels((prev) => [...prev, decodedMessage.payload]);
       }
     };
     return () => {
@@ -54,33 +55,24 @@ function App() {
     setState({ x: '', y: '' });
   };
 
-  // if (!isLoggedIn) {
-  //   chat = (
-  //     <form onSubmit={setUsername}>
-  //       <input type="text" name="username" value={usernameText} onChange={changeUsername} />
-  //       <button type="submit" value="Enter Chat">
-  //         Enter chat
-  //       </button>
-  //     </form>
-  //   );
-  // }
-
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // const draw = (ctx: CanvasRenderingContext2D) => {
-  //   ctx.moveTo(0, 0);
-  //   ctx.lineTo(150, 10);
-  //   ctx.stroke();
-  // };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
       const context = canvas.getContext('2d');
       if (context) {
-        context.moveTo(0, 0);
-        context.lineTo(Number(pixels.x), Number(pixels.y));
-        context.stroke();
+        const lastCoordinates = pixels.at(-1);
+        if (lastCoordinates) {
+          context.beginPath();
+          context.moveTo(0, 0);
+          context.lineTo(Number(lastCoordinates.x), Number(lastCoordinates.y));
+          context.closePath();
+          context.stroke();
+        }
+        // for (const pixel of pixels) {
+
+        // }
       }
     }
   }, [pixels]);

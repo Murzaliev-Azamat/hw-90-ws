@@ -5,7 +5,7 @@ export interface CanvasPixels {
 
 export interface IncomingMessage {
   type: string;
-  payload: ChatMessage;
+  payload: CanvasPixels;
 }
 
 export interface PixelsApi {

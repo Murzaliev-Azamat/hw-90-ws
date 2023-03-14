@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import expressWs from "express-ws";
-import { ActiveConnections, IncomingMessage } from "./types";
+import { ActiveConnections, BasePixels, IncomingMessage } from "./types";
 import * as crypto from "crypto";
 
 const app = express();
@@ -16,23 +16,29 @@ const router = express.Router();
 app.use(router);
 
 const activeConnections: ActiveConnections = {};
+const basePixels: BasePixels[] = [];
 
 router.ws("/canvas", (ws, req) => {
   const id = crypto.randomUUID();
   console.log("client connected! id=" + id);
+
   activeConnections[id] = ws;
 
-  const basePixels: any[] = [];
-
-  console.log(basePixels);
-  // ws.send(basePixels);
+  for (const basePixel of basePixels) {
+    ws.send(
+      JSON.stringify({
+        type: "NEW_PIXELS",
+        payload: basePixel,
+      })
+    );
+  }
 
   ws.on("message", (message) => {
     const decodedMessage = JSON.parse(message.toString()) as IncomingMessage;
 
+    basePixels.push(decodedMessage.payload);
     switch (decodedMessage.type) {
       case "SET_PIXELS":
-        basePixels.push(decodedMessage.payload);
         Object.keys(activeConnections).forEach((id) => {
           const conn = activeConnections[id];
           conn.send(
